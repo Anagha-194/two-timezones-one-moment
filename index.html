@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Two Timezones, One Moment</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display&family=Inter&display=swap" rel="stylesheet">
+
+<style>
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: #f6f4ef;
+    color: #1a1a1a;
+    font-family: 'Inter', sans-serif;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  #container {
+    display: grid;
+    grid-template-columns: 1fr 1px 1fr;
+    height: 100vh;
+    align-items: center;
+    padding: 24px;
+  }
+
+  .panel {
+    text-align: center;
+    transition: transform 1.5s ease, opacity 1.5s ease;
+  }
+
+  .label { font-size: 0.85rem; letter-spacing: 0.08em; opacity: 0.5; margin-bottom: 6px; }
+  .time { font-size: 2.1rem; font-weight: 300; }
+  .zone { font-size: 0.75rem; opacity: 0.45; margin-top: 6px; }
+
+  #divider {
+    width: 1px;
+    height: 40%;
+    background: rgba(0,0,0,0.15);
+    transition: opacity 1.5s ease;
+  }
+
+  #footer {
+    position: absolute;
+    bottom: 18px;
+    width: 100%;
+    text-align: center;
+    font-size: 0.75rem;
+    opacity: 0.4;
+    transition: opacity 1.5s ease;
+  }
+
+  #final-message {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Playfair Display', serif;
+    font-size: 1.8rem;
+    text-align: center;
+    opacity: 0;
+    pointer-events: none;
+    padding: 24px;
+    transition: opacity 1.5s ease;
+    white-space: pre-wrap;
+  }
+
+  #tap-overlay {
+    position: fixed; inset:0;
+    display: flex; justify-content:center; align-items:center;
+    background: rgba(246,244,239,0.95);
+    font-family: 'Inter', sans-serif;
+    font-size: 1.2rem;
+    text-align: center;
+    cursor: pointer;
+    z-index: 9999;
+  }
+
+  @media (max-width: 600px) {
+    #container { grid-template-columns: 1fr; grid-template-rows: auto auto; gap: 40px; }
+    #divider { display: none; }
+    .time { font-size: 1.8rem; }
+    #final-message { font-size: 1.5rem; line-height: 1.5; }
+  }
+</style>
+</head>
+
+<body>
+
+<div id="container">
+  <div id="panel-left" class="panel">
+    <div class="label">Here</div>
+    <div class="time" id="istTime">--:--:--</div>
+    <div class="zone">IST</div>
+  </div>
+
+  <div id="divider"></div>
+
+  <div id="panel-right" class="panel">
+    <div class="label">There</div>
+    <div class="time" id="ukTime">--:--:--</div>
+    <div class="zone">UK</div>
+  </div>
+</div>
+
+<div id="final-message"></div>
+<div id="footer">Different times. Same moment.</div>
+
+<!-- Tap to start -->
+<div id="tap-overlay">Tap anywhere to start the New Year moment</div>
+
+<!-- Your audio file in same folder -->
+<audio id="chime" src="my-new-year-sound.mp3" preload="auto"></audio>
+
+<script>
+let hasMerged = false;
+let soundUnlocked = false;
+
+const istTimeEl = document.getElementById("istTime");
+const ukTimeEl = document.getElementById("ukTime");
+const messageEl = document.getElementById("final-message");
+const chime = document.getElementById("chime");
+const fullMessage = "Time and distance didn’t separate us. Happy New Year to my everything.";
+
+// Format time in specific timezone
+function formatTime(date, timeZone) {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false
+  }).format(date);
+}
+
+// Update clocks every second
+function updateTimes() {
+  const now = new Date();
+  istTimeEl.textContent = formatTime(now, "Asia/Kolkata");
+  ukTimeEl.textContent = formatTime(now, "Europe/London");
+}
+setInterval(updateTimes, 1000);
+updateTimes();
+
+// Typing effect
+function typeMessage(text, i = 0) {
+  if (i < text.length) {
+    messageEl.textContent += text[i];
+    setTimeout(() => typeMessage(text, i + 1), 60);
+  }
+}
+
+// Chime fade
+function playChimeFade() {
+  if (!soundUnlocked) return;
+  chime.volume = 1;
+  chime.play();
+  const fadeInterval = setInterval(() => {
+    if (chime.volume > 0.05) {
+      chime.volume -= 0.02;
+    } else {
+      chime.volume = 0;
+      clearInterval(fadeInterval);
+    }
+  }, 150);
+}
+
+// Merge panels, fade, show message
+function mergeScreens() {
+  if (hasMerged) return;
+  hasMerged = true;
+
+  const divider = document.getElementById("divider");
+  const footer = document.getElementById("footer");
+  const left = document.getElementById("panel-left");
+  const right = document.getElementById("panel-right");
+
+  if (divider) divider.style.opacity = "0";
+  if (footer) footer.style.opacity = "0";
+
+  requestAnimationFrame(() => {
+    left.style.opacity = "0";
+    right.style.opacity = "0";
+    left.style.transform = "translateY(-10%)";
+    right.style.transform = "translateY(10%)";
+  });
+
+  setTimeout(() => {
+    messageEl.style.opacity = "1";
+    typeMessage(fullMessage);
+    playChimeFade();
+  }, 800);
+}
+
+// Tap anywhere to unlock sound and trigger message
+function handleTap() {
+  if (!soundUnlocked) {
+    chime.play().then(() => chime.pause());
+    chime.currentTime = 0;
+    soundUnlocked = true;
+  }
+  mergeScreens();
+  document.getElementById('tap-overlay').remove();
+  window.removeEventListener('click', handleTap);
+  window.removeEventListener('keydown', handleTap);
+}
+
+window.addEventListener('click', handleTap);
+window.addEventListener('keydown', handleTap);
+
+</script>
+
+</body>
+</html>
